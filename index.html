@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>HS Engenharias — Gerador de Relatórios de Peritagem</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F7F5F2;font-family:Georgia,serif;min-height:100vh}
+input,textarea,button{font-family:inherit}
+input:focus,textarea:focus{outline:none;border-color:#C75B1A!important}
+textarea{resize:vertical}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef } = React;
+const C = {bg:"#F7F5F2",surface:"#FFFFFF",border:"#E0DCD6",accent:"#C75B1A",accentLight:"#FDF0E8",text:"#1A1714",muted:"#6B6560",step:"#2C2926",done:"#2D6A4F",doneBg:"#EAF4EF",warn:"#7B3F00"};
+const uid = () => Math.random().toString(36).slice(2, 8);
+function useImages() {
+  const [images, setImages] = useState([]);
+  const add = (files) => {
+    const newImgs = Array.from(files).map((f) => ({
+      id: uid(), file: f, url: URL.createObjectURL(f),
+      caption: f.name.replace(/\.[^.]+$/, ""),
+    }));
+    setImages((p) => [...p, ...newImgs]);
+  };
+  const remove = (id) => setImages((p) => p.filter((i) => i.id !== id));
+  const setCaption = (id, caption) =>
+    setImages((p) => p.map((i) => (i.id === id ? { ...i, caption } : i)));
+  return { images, add, remove, setCaption };
+}
+function Label({ children }) {
+  return <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:C.muted, marginBottom:6 }}>{children}</div>;
+}
+function Input({ value, onChange, placeholder, multiline, rows=4 }) {
+  const base = { width:"100%", boxSizing:"border-box", border:"1.5px solid "+C.border, borderRadius:8, padding:"10px 14px", fontFamily:"inherit", fontSize:14, color:C.text, background:C.surface, outline:"none" };
+  return multiline ? <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...base,resize:"vertical",lineHeight:1.6}}/> : <input value={value} onChange={onChange} placeholder={placeholder} style={base}/>;
+}
+function PhotoZone({ images, onAdd, onRemove, onCaption, maxPhotos=8 }) {
+  const ref = useRef(); const camRef = useRef(); const [drag, setDrag] = useState(false);
+  return (
+    <div>
+      <div onClick={()=>ref.current.click()} onDragOver={(e)=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={(e)=>{e.preventDefault();setDrag(false);onAdd(e.dataTransfer.files);}} style={{ border:"2px dashed "+(drag?C.accent:C.border), borderRadius:12, padding:"20px 16px", textAlign:"center", cursor:"pointer", background:drag?C.accentLight:"#FAFAF8", marginBottom:10 }}>
+        <div style={{fontSize:28,marginBottom:6}}>📷</div>
+        <div style={{fontSize:13,color:C.muted}}>Clique ou arraste fotos aqui</div>
+        <input ref={ref} type="file" accept="image/*" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
+      </div>
+      <div onClick={()=>camRef.current&&camRef.current.click()} style={{ border:"2px solid "+C.accent, borderRadius:10, padding:"12px 10px", textAlign:"center", cursor:"pointer", background:C.accentLight, marginBottom:14 }}>
+        <div style={{fontSize:22,marginBottom:3}}>📷</div>
+        <div style={{fontSize:12,color:C.accent,fontWeight:700}}>Usar Câmara do Telemóvel</div>
+        <input ref={camRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
+      </div>
+      {images.length>0 && <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>{images.map((img)=>(<div key={img.id} style={{border:"1px solid "+C.border,borderRadius:8,overflow:"hidden"}}><div style={{position:"relative"}}><img src={img.url} alt="" style={{width:"100%",height:100,objectFit:"cover",display:"block"}}/><button onClick={()=>onRemove(img.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",border:"none",borderRadius:"50%",width:22,height:22,color:"#fff",cursor:"pointer",fontSize:11}}>✕</button></div><input value={img.caption} onChange={(e)=>onCaption(img.id,e.target.value)} placeholder="Legenda..." style={{width:"100%",boxSizing:"border-box",border:"none",borderTop:"1px solid "+C.border,padding:"5px 8px",fontSize:11,fontFamily:"inherit",outline:"none"}}/></div>))}</div>}
+    </div>
+  );
+}
+function SectionCard({ title, subtitle, done, children, accent=false }) {
+  return (
+    <div style={{background:C.surface,border:"1.5px solid "+(done?C.done:accent?C.accent:C.border),borderRadius:14,marginBottom:20,overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}>
+      <div style={{padding:"16px 22px",background:done?C.doneBg:accent?C.accentLight:"#FAFAF8",borderBottom:"1px solid "+(done?"#C3E6D6":C.border),display:"flex",alignItems:"center",gap:10}}>
+        <div style={{fontSize:18}}>{done?"✅":accent?"🔶":"📋"}</div>
+        <div><div style={{fontWeight:700,fontSize:15,color:done?C.done:C.step}}>{title}</div>{subtitle&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>{subtitle}</div>}</div>
+      </div>
+      <div style={{padding:"20px 22px"}}>{children}</div>
+    </div>
+  );
+}
+function FractionRow({ frac, onChange, onRemove }) {
+  const update=(field)=>(e)=>onChange({...frac,[field]:e.target.value});
+  return (
+    <div style={{border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:12,background:"#FAFAF8"}}>
+      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 100px"}}><Label>Entrada</Label><Input value={frac.entrada} onChange={update("entrada")} placeholder="Ex: 231"/></div>
+        <div style={{flex:"1 1 100px"}}><Label>Bloco</Label><Input value={frac.bloco} onChange={update("bloco")} placeholder="Ex: A"/></div>
+        <div style={{flex:"1 1 130px"}}><Label>Fração</Label><Input value={frac.nome} onChange={update("nome")} placeholder="Ex: 2º Esq."/></div>
+        <div style={{flex:"0 0 auto",display:"flex",alignItems:"flex-end"}}><button onClick={onRemove} style={{background:"#FEE2E2",border:"none",borderRadius:6,padding:"8px 12px",color:"#B91C1C",cursor:"pointer",fontSize:13}}>Remover</button></div>
+      </div>
+      <div style={{marginBottom:12}}><Label>Anomalias observadas</Label><Input value={frac.anomalias} onChange={update("anomalias")} placeholder="Infiltrações, empolamentos, fissuras..." multiline rows={3}/></div>
+      <div style={{marginBottom:12}}><Label>Humidade (higrómetro)</Label><Input value={frac.humidade} onChange={update("humidade")} placeholder="Ex: Valores superiores ao normal"/></div>
+      <Label>Fotos da Fração</Label>
+      <PhotoZone images={frac.images||[]} onAdd={(files)=>{const n=Array.from(files).map(f=>({id:uid(),file:f,url:URL.createObjectURL(f),caption:f.name.replace(/\.[^.]+$/,"")}));onChange({...frac,images:[...(frac.images||[]),...n]});}} onRemove={(id)=>onChange({...frac,images:(frac.images||[]).filter(i=>i.id!==id)})} onCaption={(id,cap)=>onChange({...frac,images:(frac.images||[]).map(i=>i.id===id?{...i,caption:cap}:i)})} maxPhotos={6}/>
+    </div>
+  );
+}
+function ZonaSection({ zona, onChange }) {
+  const update=(field)=>(e)=>onChange({...zona,[field]:e.target.value});
+  return (
+    <div style={{border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:16,background:"#FAFAF8"}}>
+      <div style={{fontWeight:700,fontSize:14,color:C.accent,marginBottom:12}}>{zona.label}</div>
+      <div style={{marginBottom:12}}><Label>Descrição / Observações</Label><Input value={zona.descricao} onChange={update("descricao")} placeholder={"Estado de conservação: "+zona.label.toLowerCase()} multiline rows={4}/></div>
+      <div style={{marginBottom:12}}><Label>Anomalias Identificadas</Label><Input value={zona.anomalias} onChange={update("anomalias")} placeholder="Patologias e defeitos observados..." multiline rows={3}/></div>
+      <Label>Fotos</Label>
+      <PhotoZone images={zona.images||[]} onAdd={(files)=>{const n=Array.from(files).map(f=>({id:uid(),file:f,url:URL.createObjectURL(f),caption:f.name.replace(/\.[^.]+$/,"")}));onChange({...zona,images:[...(zona.images||[]),...n]});}} onRemove={(id)=>onChange({...zona,images:(zona.images||[]).filter(i=>i.id!==id)})} onCaption={(id,cap)=>onChange({...zona,images:(zona.images||[]).map(i=>i.id===id?{...i,caption:cap}:i)})}/>
+    </div>
+  );
+}
+function App() {
+  const [step,setStep]=useState(0);
+  const [generating,setGenerating]=useState(false);
+  const [genProgress,setGenProgress]=useState("");
+  const [nomeEdificio,setNomeEdificio]=useState("");
+  const [referencia,setReferencia]=useState("");
+  const [morada,setMorada]=useState("");
+  const [codigoPostal,setCodigoPostal]=useState("");
+  const [localidade,setLocalidade]=useState("");
+  const coverImgs=useImages();
+  const [nomePerito,setNomePerito]=useState("");
+  const [bi,setBi]=useState("");
+  const [cedula,setCedula]=useState("");
+  const [moradaProf,setMoradaProf]=useState("");
+  const [cidade,setCidade]=useState("Porto");
+  const [dataRelatorio,setDataRelatorio]=useState("");
+  const [datasVisita,setDatasVisita]=useState("");
+  const [objetivo,setObjetivo]=useState("realização de um procedimento de reabilitação das fachadas, comunicações horizontais e verticais comuns e cobertura do edifício.");
+  const [gerencia,setGerencia]=useState("");
+  const [tipoImovel,setTipoImovel]=useState("");
+  const [numeroBlocos,setNumeroBlocos]=useState("");
+  const [numerEntradas,setNumeroEntradas]=useState("");
+  const [totalFracoesHab,setTotalFracoesHab]=useState("");
+  const [totalFracoesCom,setTotalFracoesCom]=useState("");
+  const [pisos,setPisos]=useState("cave, rés-do-chão e três pisos elevados");
+  const [estrutura,setEstrutura]=useState("estrutura porticada de betão armado, com lajes de vigotas em betão pré-esforçado");
+  const [revestimento,setRevestimento]=useState("reboco armado nas fachadas e ladrilho cerâmico nas varandas");
+  const [anoConst,setAnoConst]=useState("");
+  const aeriasImgs=useImages();
+  const [zonas,setZonas]=useState([
+    {id:"cobertura",label:"COBERTURA",descricao:"",anomalias:"",images:[]},
+    {id:"cob_incl",label:"Cobertura Inclinada Não Acessível",descricao:"",anomalias:"",images:[]},
+    {id:"fachadas",label:"FACHADAS e EXTERIOR",descricao:"",anomalias:"",images:[]},
+    {id:"escadas",label:"CAIXA DE ESCADAS e COMUNICAÇÕES HORIZONTAIS",descricao:"",anomalias:"",images:[]},
+    {id:"garagem",label:"GARAGEM",descricao:"",anomalias:"",images:[]},
+  ]);
+  const [fracoes,setFracoes]=useState([{id:uid(),entrada:"",bloco:"",nome:"",anomalias:"",humidade:"",images:[]}]);
+  const [recCobertura,setRecCobertura]=useState("");
+  const [recFachadas,setRecFachadas]=useState("");
+  const [recGeral,setRecGeral]=useState("");
+  const updateZona=(id,upd)=>setZonas(p=>p.map(z=>z.id===id?upd:z));
+  const addFracao=()=>setFracoes(p=>[...p,{id:uid(),entrada:"",bloco:"",nome:"",anomalias:"",humidade:"",images:[]}]);
+  const removeFracao=(id)=>setFracoes(p=>p.filter(f=>f.id!==id));
+  const updateFracao=(id,upd)=>setFracoes(p=>p.map(f=>f.id===id?upd:f));
+  const STEPS=[{label:"Edifício",icon:"🏢"},{label:"Perito",icon:"👤"},{label:"Imóvel",icon:"📐"},{label:"Zonas",icon:"🏗️"},{label:"Frações",icon:"🚪"},{label:"Recomendações",icon:"📝"},{label:"Gerar",icon:"🚀"}];
+  const getData=()=>({nomeEdificio,referencia,morada,codigoPostal,localidade,coverImages:coverImgs.images,nomePerito,bi,cedula,moradaProf,cidade,dataRelatorio,datasVisita,objetivo,gerencia,tipoImovel,numeroBlocos,numerEntradas,totalFracoesHab,totalFracoesCom,pisos,estrutura,revestimento,anoConst,aeriasImages:aeriasImgs.images,zonas,fracoes,recCobertura,recFachadas,recGeral});
+  const toBase64=(f)=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.readAsDataURL(f);});
+  const handleGenerate=async()=>{
+    setGenerating(true);setGenProgress("A preparar dados...");
+    const data=getData();
+    setGenProgress("A processar imagens...");
+    const coverB64=await Promise.all(data.coverImages.slice(0,2).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));
+    const zonaImgs={};
+    for(const zona of data.zonas){if(zona.images?.length){zonaImgs[zona.id]=await Promise.all(zona.images.slice(0,4).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));}}
+    const fracaoImgs={};
+    for(const frac of data.fracoes){if(frac.images?.length){fracaoImgs[frac.id]=await Promise.all(frac.images.slice(0,4).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));}}
+    setGenProgress("A gerar textos com IA...");
+    const prompt="Gera conteúdo formal para relatório de peritagem em português europeu.\nEDIFÍCIO: "+data.nomeEdificio+"\nMORADA: "+data.morada+", "+data.codigoPostal+" "+data.localidade+"\nPERITO: "+data.nomePerito+", Cédula "+data.cedula+"\nDATA: "+data.dataRelatorio+" | VISITAS: "+data.datasVisita+"\nOBJETIVO: "+data.objetivo+"\nGERÊNCIA: "+data.gerencia+"\nIMÓVEL: "+data.tipoImovel+" | "+data.numeroBlocos+" blocos | "+data.numerEntradas+" entradas\nFRAÇÕES: "+data.totalFracoesHab+" hab + "+data.totalFracoesCom+" com\nPISOS: "+data.pisos+"\nESTRUTURA: "+data.estrutura+"\nZONAS:\n"+data.zonas.map(z=>"["+z.label+"] "+z.descricao+" Anomalias: "+z.anomalias).join("\n")+"\nFRAÇÕES:\n"+data.fracoes.map(f=>"Ent."+f.entrada+" Bl."+f.bloco+" "+f.nome+": "+f.anomalias).join("\n")+"\nRECOMENDAÇÕES: "+data.recCobertura+" | "+data.recFachadas+" | "+data.recGeral+"\nResponde APENAS JSON sem backticks:\n{\"preambulo\":\"3 paragrafos\",\"descricaoImovel\":\"2 paragrafos\",\"vistoria\":\"1 paragrafo\",\"anomaliasGerais\":\"3 paragrafos\",\"zonas\":[{\"id\":\"id\",\"descricaoExpandida\":\"texto\",\"anomaliasExpandidas\":\"texto\"}],\"fracoes\":[{\"id\":\"id\",\"textoExpandido\":\"texto\"}],\"recomendacoes\":\"4 paragrafos\"}";
+    let generated={};
+    try{
+      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:prompt}]})});
+      const apiData=await resp.json();
+      const raw=apiData.content?.find(c=>c.type==="text")?.text||"{}";
+      generated=JSON.parse(raw.replace(/```json|```/g,"").trim());
+    }catch(e){console.error(e);}
+    setGenProgress("A exportar...");
+    const bundle={meta:{nomeEdificio:data.nomeEdificio,referencia:data.referencia,morada:data.morada,codigoPostal:data.codigoPostal,localidade:data.localidade,nomePerito:data.nomePerito,bi:data.bi,cedula:data.cedula,moradaProf:data.moradaProf,cidade:data.cidade,dataRelatorio:data.dataRelatorio,datasVisita:data.datasVisita,objetivo:data.objetivo,gerencia:data.gerencia,tipoImovel:data.tipoImovel,numeroBlocos:data.numeroBlocos,numerEntradas:data.numerEntradas,totalFracoesHab:data.totalFracoesHab,totalFracoesCom:data.totalFracoesCom,pisos:data.pisos,estrutura:data.estrutura,revestimento:data.revestimento,anoConst:data.anoConst,recCobertura:data.recCobertura,recFachadas:data.recFachadas,recGeral:data.recGeral},generated,coverImagens:coverB64,zonas:data.zonas.map(z=>({id:z.id,label:z.label,imagens:zonaImgs[z.id]||[]})),fracoes:data.fracoes.map(f=>({id:f.id,entrada:f.entrada,bloco:f.bloco,nome:f.nome,humidade:f.humidade,imagens:fracaoImgs[f.id]||[]}))};
+    const blob=new Blob([JSON.stringify(bundle,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="relatorio_"+(data.nomeEdificio||"edificio").replace(/\s+/g,"_")+".json";a.click();URL.revokeObjectURL(url);
+    setGenProgress("✅ Concluído! Ficheiro exportado.");
+    setGenerating(false);
+  };
+  const data=getData();
+  const totalPhotos=[...(data.coverImages||[]),...(data.aeriasImages||[]),...data.zonas.flatMap(z=>z.images||[]),...data.fracoes.flatMap(f=>f.images||[])].length;
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"Georgia,serif"}}>
+      <div style={{background:C.step}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"18px 20px",display:"flex",alignItems:"center",gap:14}}>
+          <div style={{background:C.accent,borderRadius:8,padding:"7px 13px",fontWeight:900,fontSize:17,color:"#fff",letterSpacing:1}}>HS</div>
+          <div>
+            <div style={{color:"#fff",fontWeight:700,fontSize:15}}>Gerador de Relatórios de Peritagem</div>
+            <div style={{color:"rgba(255,255,255,.5)",fontSize:11}}>HS Engenharias · {totalPhotos} fotos · {data.fracoes.length} frações</div>
+          </div>
+        </div>
+        <div style={{borderTop:"1px solid rgba(255,255,255,.08)",overflowX:"auto"}}>
+          <div style={{maxWidth:900,margin:"0 auto",display:"flex"}}>
+            {STEPS.map((s,i)=>(<button key={i} onClick={()=>setStep(i)} style={{background:"none",border:"none",cursor:"pointer",padding:"11px 14px",whiteSpace:"nowrap",color:i===step?C.accent:"rgba(255,255,255,.45)",fontWeight:i===step?700:400,fontSize:12,borderBottom:i===step?"3px solid "+C.accent:"3px solid transparent",fontFamily:"inherit"}}>{s.icon} {s.label}</button>))}
+          </div>
+        </div>
+      </div>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"28px 20px"}}>
+        {step===0&&(<><SectionCard title="Identificação do Edifício" accent done={!!nomeEdificio&&!!morada}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{gridColumn:"1/-1"}}><Label>Nome do Edifício *</Label><Input value={nomeEdificio} onChange={e=>setNomeEdificio(e.target.value)} placeholder="Ex: Edifício Prestígio"/></div>
+            <div><Label>Referência</Label><Input value={referencia} onChange={e=>setReferencia(e.target.value)} placeholder="Ex: PR1_475"/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Morada *</Label><Input value={morada} onChange={e=>setMorada(e.target.value)} placeholder="Ex: Rua do Pinhal N.º 175 a 231"/></div>
+            <div><Label>Código Postal</Label><Input value={codigoPostal} onChange={e=>setCodigoPostal(e.target.value)} placeholder="4410-269"/></div>
+            <div><Label>Localidade</Label><Input value={localidade} onChange={e=>setLocalidade(e.target.value)} placeholder="Canelas"/></div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Fotografia de Capa" done={coverImgs.images.length>0}>
+          <PhotoZone images={coverImgs.images} onAdd={coverImgs.add} onRemove={coverImgs.remove} onCaption={coverImgs.setCaption} maxPhotos={1}/>
+        </SectionCard></>)}
+        {step===1&&(<><SectionCard title="Dados do Perito" accent done={!!nomePerito}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{gridColumn:"1/-1"}}><Label>Nome Completo *</Label><Input value={nomePerito} onChange={e=>setNomePerito(e.target.value)} placeholder="Ex: Rita Isabel dos Reis Marques"/></div>
+            <div><Label>Nº Cartão Cidadão</Label><Input value={bi} onChange={e=>setBi(e.target.value)} placeholder="11974057"/></div>
+            <div><Label>Cédula Profissional</Label><Input value={cedula} onChange={e=>setCedula(e.target.value)} placeholder="18718"/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Morada Profissional</Label><Input value={moradaProf} onChange={e=>setMoradaProf(e.target.value)} placeholder="Rua de Monsanto, 512B, Porto"/></div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Dados do Relatório" done={!!dataRelatorio}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><Label>Data do Relatório</Label><Input value={dataRelatorio} onChange={e=>setDataRelatorio(e.target.value)} placeholder="Porto, 7 de Abril de 2026"/></div>
+            <div><Label>Datas das Visitas</Label><Input value={datasVisita} onChange={e=>setDatasVisita(e.target.value)} placeholder="2, 3, 4, 9 e 10 de dezembro 2025"/></div>
+            <div><Label>Cidade</Label><Input value={cidade} onChange={e=>setCidade(e.target.value)} placeholder="Porto"/></div>
+            <div><Label>Gerência</Label><Input value={gerencia} onChange={e=>setGerencia(e.target.value)} placeholder="Cálculo Expedito, Consultoria em Engenharia, Lda."/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Objetivo</Label><Input value={objetivo} onChange={e=>setObjetivo(e.target.value)} multiline rows={3} placeholder="Objetivo do relatório..."/></div>
+          </div>
+        </SectionCard></>)}
+        {step===2&&(<><SectionCard title="Caracterização do Imóvel" accent done={!!tipoImovel}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{gridColumn:"1/-1"}}><Label>Tipologia</Label><Input value={tipoImovel} onChange={e=>setTipoImovel(e.target.value)} placeholder="habitacional e comercial"/></div>
+            <div><Label>Nº de Blocos</Label><Input value={numeroBlocos} onChange={e=>setNumeroBlocos(e.target.value)} placeholder="quatro (4)"/></div>
+            <div><Label>Nº de Entradas</Label><Input value={numerEntradas} onChange={e=>setNumeroEntradas(e.target.value)} placeholder="onze (11)"/></div>
+            <div><Label>Frações Habitacionais</Label><Input value={totalFracoesHab} onChange={e=>setTotalFracoesHab(e.target.value)} placeholder="150"/></div>
+            <div><Label>Frações Comerciais</Label><Input value={totalFracoesCom} onChange={e=>setTotalFracoesCom(e.target.value)} placeholder="3"/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Pisos</Label><Input value={pisos} onChange={e=>setPisos(e.target.value)} placeholder="cave, rés-do-chão e três pisos elevados"/></div>
+            <div><Label>Ano / Época</Label><Input value={anoConst} onChange={e=>setAnoConst(e.target.value)} placeholder="século XX"/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Sistema Estrutural</Label><Input value={estrutura} onChange={e=>setEstrutura(e.target.value)} multiline rows={2} placeholder="estrutura porticada de betão armado..."/></div>
+            <div style={{gridColumn:"1/-1"}}><Label>Revestimentos</Label><Input value={revestimento} onChange={e=>setRevestimento(e.target.value)} multiline rows={2} placeholder="reboco armado nas fachadas..."/></div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Fotos Aéreas / Vista Geral" done={aeriasImgs.images.length>0}>
+          <PhotoZone images={aeriasImgs.images} onAdd={aeriasImgs.add} onRemove={aeriasImgs.remove} onCaption={aeriasImgs.setCaption} maxPhotos={4}/>
+        </SectionCard></>)}
+        {step===3&&(<SectionCard title="Zonas Comuns" subtitle="Preencha cada zona inspecionada" accent>
+          {zonas.map(zona=>(<ZonaSection key={zona.id} zona={zona} onChange={upd=>updateZona(zona.id,upd)}/>))}
+        </SectionCard>)}
+        {step===4&&(<SectionCard title="Frações Autónomas" subtitle="Adicione uma linha por fração" accent>
+          {fracoes.map(f=>(<FractionRow key={f.id} frac={f} onChange={upd=>updateFracao(f.id,upd)} onRemove={()=>removeFracao(f.id)}/>))}
+          <button onClick={addFracao} style={{width:"100%",padding:"12px 0",background:C.accentLight,border:"2px dashed "+C.accent,borderRadius:8,color:C.accent,fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>+ Adicionar Fração</button>
+        </SectionCard>)}
+        {step===5&&(<SectionCard title="Recomendações / Proposta de Execução" accent done={!!recCobertura||!!recFachadas}>
+          <div style={{marginBottom:18}}><Label>Cobertura</Label><Input value={recCobertura} onChange={e=>setRecCobertura(e.target.value)} multiline rows={4} placeholder="Propõe-se a reabilitação da cobertura..."/></div>
+          <div style={{marginBottom:18}}><Label>Fachadas</Label><Input value={recFachadas} onChange={e=>setRecFachadas(e.target.value)} multiline rows={4} placeholder="Propõe-se a lavagem integral do revestimento..."/></div>
+          <div><Label>Geral / Outros</Label><Input value={recGeral} onChange={e=>setRecGeral(e.target.value)} multiline rows={3} placeholder="Retificação de caleiras..."/></div>
+        </SectionCard>)}
+        {step===6&&(<SectionCard title="Gerar Relatório" done={!generating}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+            {[{label:"Edifício",value:nomeEdificio||"—"},{label:"Perito",value:nomePerito?nomePerito.split(" ")[0]:"—"},{label:"Frações",value:fracoes.length},{label:"Fotos",value:totalPhotos},{label:"Zonas",value:zonas.filter(z=>z.descricao||z.images?.length>0).length},{label:"Recomendações",value:recCobertura||recFachadas?"✓":"—"}].map(({label,value})=>(<div key={label} style={{background:C.accentLight,borderRadius:8,padding:"12px 14px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:C.accent}}>{value}</div><div style={{fontSize:11,color:C.muted,marginTop:2}}>{label}</div></div>))}
+          </div>
+          {generating?(<div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:10}}>⚙️</div><div style={{fontWeight:700,color:C.step,marginBottom:6}}>A gerar...</div><div style={{fontSize:13,color:C.muted}}>{genProgress}</div></div>):genProgress?(<div><div style={{marginBottom:14,padding:14,background:C.doneBg,borderRadius:8,fontSize:13,color:C.done}}>{genProgress}</div><button onClick={handleGenerate} style={{width:"100%",padding:"13px 0",background:C.step,color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>🔄 Gerar novamente</button></div>):(<button onClick={handleGenerate} style={{width:"100%",padding:"16px 0",background:C.accent,color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:16,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(199,91,26,.35)"}}>🚀 Gerar Relatório com IA</button>)}
+        </SectionCard>)}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+          {step>0&&(<button onClick={()=>setStep(s=>s-1)} style={{background:C.surface,border:"1.5px solid "+C.border,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"inherit",fontSize:14,color:C.text}}>← Anterior</button>)}
+          {step<STEPS.length-1&&(<button onClick={()=>setStep(s=>s+1)} style={{marginLeft:"auto",background:C.step,color:"#fff",border:"none",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:700}}>Próximo →</button>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>  
