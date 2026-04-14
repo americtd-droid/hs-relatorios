@@ -277,80 +277,88 @@ function App() {
   // ============================================================
   // GERAR RELATÓRIO — Envia dados para o n8n
   // ============================================================
-  const handleGenerate=async()=>{
-    if(!nomeEdificio.trim()){alert("Por favor preencha o nome do edifício.");setStep(0);return;}
-    if(!nomePerito.trim()){alert("Por favor preencha o nome do perito.");setStep(1);return;}
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+  const convertImgs = async (imgs) => {
+    if (!imgs || !imgs.length) return [];
+    const out = [];
+    for (const img of imgs) {
+      try {
+        const b64 = await fileToBase64(img.file);
+        out.push({ caption: img.caption || "", data: b64 });
+      } catch (e) { console.error("Erro a converter imagem:", e); }
+    }
+    return out;
+  };
+
+  const handleGenerate = async () => {
+    if (!nomeEdificio.trim()) { alert("Por favor preencha o nome do edifício."); setStep(0); return; }
+    if (!nomePerito.trim()) { alert("Por favor preencha o nome do perito."); setStep(1); return; }
 
     setGenerating(true);
     setGenResult(null);
-    setGenProgress("A preparar dados...");
+    setGenProgress("A preparar imagens...");
     setGenPercent(10);
 
-    const data=getData();
+    const data = getData();
+
+    // Converter todas as imagens para base64
+    const coverB64 = await convertImgs(data.coverImages);
+    const aeriasB64 = await convertImgs(data.aeriasImages);
+    const zonasComImg = [];
+    for (const z of data.zonas) {
+      zonasComImg.push({ ...z, imagesB64: await convertImgs(z.images) });
+    }
+    const fracoesComImg = [];
+    for (const f of data.fracoes) {
+      fracoesComImg.push({ ...f, imagesB64: await convertImgs(f.images) });
+    }
 
     setGenProgress("A organizar informação...");
-    setGenPercent(25);
+    setGenPercent(30);
 
     const payload = {
       edificio: {
-        nome: data.nomeEdificio,
-        morada: data.morada,
-        codigo_postal: data.codigoPostal,
-        localidade: data.localidade,
-        referencia: data.referencia,
-        tipo: data.tipoImovel,
-        num_blocos: data.numeroBlocos,
-        num_entradas: data.numerEntradas,
-        num_fracoes_hab: data.totalFracoesHab,
-        num_fracoes_com: data.totalFracoesCom,
-        pisos: data.pisos,
-        estrutura: data.estrutura,
-        revestimento: data.revestimento,
-        ano_construcao: data.anoConst,
-        data_vistoria: data.datasVisita,
+        nome: data.nomeEdificio, morada: data.morada,
+        codigo_postal: data.codigoPostal, localidade: data.localidade,
+        referencia: data.referencia, tipo: data.tipoImovel,
+        num_blocos: data.numeroBlocos, num_entradas: data.numerEntradas,
+        num_fracoes_hab: data.totalFracoesHab, num_fracoes_com: data.totalFracoesCom,
+        pisos: data.pisos, estrutura: data.estrutura, revestimento: data.revestimento,
+        ano_construcao: data.anoConst, data_vistoria: data.datasVisita,
       },
-      perito: {
-        nome: data.nomePerito,
-        bi: data.bi,
-        cedula: data.cedula,
-        morada: data.moradaProf,
-        cidade: data.cidade,
-      },
-      imovel: {
-        tipo: data.tipoImovel,
-        pisos: data.pisos,
-        tipo_estrutura: data.estrutura,
-        revestimento: data.revestimento,
-        ano_construcao: data.anoConst,
-      },
-      zonas: data.zonas.filter(z=>z.descricao||z.anomalias).map(z=>({
-        nome: z.label,
-        descricao: z.descricao,
-        anomalias: z.anomalias,
-        fotografias: (z.images||[]).map(i=>i.caption),
+      perito: { nome: data.nomePerito, bi: data.bi, cedula: data.cedula, morada: data.moradaProf, cidade: data.cidade },
+      imovel: { tipo: data.tipoImovel, pisos: data.pisos, tipo_estrutura: data.estrutura, revestimento: data.revestimento, ano_construcao: data.anoConst },
+      fotos_capa: coverB64,
+      fotos_aereas: aeriasB64,
+      zonas: zonasComImg.filter(z => z.descricao || z.anomalias || (z.imagesB64 && z.imagesB64.length)).map(z => ({
+        nome: z.label, descricao: z.descricao, anomalias: z.anomalias,
+        fotos: z.imagesB64,
       })),
-      fracoes: data.fracoes.filter(f=>f.nome||f.anomalias).map(f=>({
-        designacao: [f.entrada&&("Ent. "+f.entrada), f.bloco&&("Bloco "+f.bloco), f.nome].filter(Boolean).join(" — "),
-        entrada: f.entrada,
-        bloco: f.bloco,
-        nome: f.nome,
-        observacoes: f.anomalias,
-        humidade: f.humidade,
+      fracoes: fracoesComImg.filter(f => f.nome || f.anomalias || (f.imagesB64 && f.imagesB64.length)).map(f => ({
+        designacao: [f.entrada && ("Ent. " + f.entrada), f.bloco && ("Bloco " + f.bloco), f.nome].filter(Boolean).join(" — "),
+        entrada: f.entrada, bloco: f.bloco, nome: f.nome,
+        observacoes: f.anomalias, humidade: f.humidade,
+        fotos: f.imagesB64,
       })),
       recomendacoes: [
-        data.recCobertura && {texto:data.recCobertura, prioridade:"URGENTE"},
-        data.recFachadas && {texto:data.recFachadas, prioridade:"IMPORTANTE"},
-        data.recGeral && {texto:data.recGeral, prioridade:"NORMAL"},
+        data.recCobertura && { texto: data.recCobertura, prioridade: "URGENTE" },
+        data.recFachadas && { texto: data.recFachadas, prioridade: "IMPORTANTE" },
+        data.recGeral && { texto: data.recGeral, prioridade: "NORMAL" },
       ].filter(Boolean),
-      referencia: data.referencia || ("HSE-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*9999)).padStart(4,"0")),
-      dataRelatorio: data.dataRelatorio,
-      datasVisita: data.datasVisita,
-      objetivo: data.objetivo,
-      gerencia: data.gerencia,
+      referencia: data.referencia || ("HSE-" + new Date().getFullYear() + "-" + String(Math.floor(Math.random() * 9999)).padStart(4, "0")),
+      dataRelatorio: data.dataRelatorio, datasVisita: data.datasVisita,
+      objetivo: data.objetivo, gerencia: data.gerencia,
+      nomePerito: data.nomePerito, nomeEdificio: data.nomeEdificio,
     };
 
     setGenProgress("A enviar para processamento...");
-    setGenPercent(40);
+    setGenPercent(50);
 
     try {
       const resp = await fetch(WEBHOOK_URL, {
@@ -358,37 +366,21 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       setGenProgress("A gerar textos com IA e criar PDF...");
-      setGenPercent(70);
-
-      if (!resp.ok) {
-        throw new Error("Erro do servidor: " + resp.status);
-      }
-
-      const result = await resp.json();
+      setGenPercent(75);
+      if (!resp.ok) throw new Error("Erro do servidor: " + resp.status);
       setGenPercent(100);
-
-      if (result.sucesso) {
-        setGenResult({
-          success: true,
-          message: "Relatório gerado e enviado para relatorios@hsengenharias.pt",
-          referencia: result.referencia,
-          edificio: result.edificio,
-        });
-        setGenProgress("");
-      } else {
-        throw new Error(result.mensagem || "Erro ao gerar relatório");
-      }
-    } catch (e) {
-      console.error("Erro:", e);
       setGenResult({
-        success: false,
-        message: "Ocorreu um erro: " + e.message + ". Verifique a ligação e tente novamente.",
+        success: true,
+        message: "Relatório gerado e enviado para relatorios@hsengenharias.pt",
+        referencia: payload.referencia,
       });
       setGenProgress("");
+    } catch (e) {
+      console.error("Erro:", e);
+      setGenResult({ success: false, message: "Ocorreu um erro: " + e.message + ". Verifique a ligação e tente novamente." });
+      setGenProgress("");
     }
-
     setGenerating(false);
   };
 
