@@ -9,18 +9,51 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#F7F5F2;font-family:Georgia,serif;min-height:100vh}
-input,textarea,button{font-family:inherit}
-input:focus,textarea:focus{outline:none;border-color:#C75B1A!important}
+body{background:#F7F5F2;font-family:Helvetica,Arial,sans-serif;min-height:100vh;color:#1A1714}
+input,textarea,button,select{font-family:Helvetica,Arial,sans-serif}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#C75B1A!important;box-shadow:0 0 0 3px rgba(199,91,26,.12)}
 textarea{resize:vertical}
+::placeholder{color:#A8A29C}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:#D4CFC8;border-radius:4px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useRef } = React;
-const C = {bg:"#F7F5F2",surface:"#FFFFFF",border:"#E0DCD6",accent:"#C75B1A",accentLight:"#FDF0E8",text:"#1A1714",muted:"#6B6560",step:"#2C2926",done:"#2D6A4F",doneBg:"#EAF4EF",warn:"#7B3F00"};
+
+// ============================================================
+// CONFIGURAÇÃO — Alterar aqui o URL do webhook quando estiver pronto
+// ============================================================
+const WEBHOOK_URL = "https://workflows.tiagoamericano.com/webhook/hs-relatorio";
+
+// Cores HS Engenharias (branco + laranja)
+const C = {
+  bg:"#F7F5F2",
+  surface:"#FFFFFF",
+  border:"#E0DCD6",
+  borderLight:"#EDEAE5",
+  accent:"#C75B1A",
+  accentDark:"#A84814",
+  accentLight:"#FDF0E8",
+  accentSoft:"#FAEAE0",
+  text:"#1A1714",
+  textSecondary:"#4A4540",
+  muted:"#6B6560",
+  step:"#2C2926",
+  done:"#2D6A4F",
+  doneBg:"#EAF4EF",
+  doneBorder:"#C3E6D6",
+  warn:"#7B3F00",
+  warnBg:"#FDF8F0",
+  error:"#B91C1C",
+  errorBg:"#FEE2E2",
+};
+
 const uid = () => Math.random().toString(36).slice(2, 8);
+
 function useImages() {
   const [images, setImages] = useState([]);
   const add = (files) => {
@@ -35,75 +68,148 @@ function useImages() {
     setImages((p) => p.map((i) => (i.id === id ? { ...i, caption } : i)));
   return { images, add, remove, setCaption };
 }
-function Label({ children }) {
-  return <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:C.muted, marginBottom:6 }}>{children}</div>;
+
+function Label({ children, required }) {
+  return (
+    <div style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:C.muted, marginBottom:6, display:"flex", gap:3 }}>
+      {children}{required && <span style={{color:C.accent}}>*</span>}
+    </div>
+  );
 }
-function Input({ value, onChange, placeholder, multiline, rows=4 }) {
-  const base = { width:"100%", boxSizing:"border-box", border:"1.5px solid "+C.border, borderRadius:8, padding:"10px 14px", fontFamily:"inherit", fontSize:14, color:C.text, background:C.surface, outline:"none" };
-  return multiline ? <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...base,resize:"vertical",lineHeight:1.6}}/> : <input value={value} onChange={onChange} placeholder={placeholder} style={base}/>;
+
+function Input({ value, onChange, placeholder, multiline, rows=4, type="text" }) {
+  const base = {
+    width:"100%", boxSizing:"border-box",
+    border:"1.5px solid "+C.border, borderRadius:8,
+    padding:"10px 14px", fontSize:14, color:C.text,
+    background:C.surface,
+  };
+  if (multiline) return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{...base,resize:"vertical",lineHeight:1.6}}/>;
+  return <input type={type} value={value} onChange={onChange} placeholder={placeholder} style={base}/>;
 }
+
 function PhotoZone({ images, onAdd, onRemove, onCaption, maxPhotos=8 }) {
   const ref = useRef(); const camRef = useRef(); const [drag, setDrag] = useState(false);
   return (
     <div>
-      <div onClick={()=>ref.current.click()} onDragOver={(e)=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={(e)=>{e.preventDefault();setDrag(false);onAdd(e.dataTransfer.files);}} style={{ border:"2px dashed "+(drag?C.accent:C.border), borderRadius:12, padding:"20px 16px", textAlign:"center", cursor:"pointer", background:drag?C.accentLight:"#FAFAF8", marginBottom:10 }}>
-        <div style={{fontSize:28,marginBottom:6}}>📷</div>
-        <div style={{fontSize:13,color:C.muted}}>Clique ou arraste fotos aqui</div>
-        <input ref={ref} type="file" accept="image/*" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
+      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div onClick={()=>ref.current.click()} onDragOver={(e)=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={(e)=>{e.preventDefault();setDrag(false);onAdd(e.dataTransfer.files);}} style={{ flex:"1 1 200px", border:"2px dashed "+(drag?C.accent:C.border), borderRadius:12, padding:"18px 14px", textAlign:"center", cursor:"pointer", background:drag?C.accentLight:"#FAFAF8" }}>
+          <div style={{fontSize:24,marginBottom:4}}>📁</div>
+          <div style={{fontSize:12,color:C.muted,fontWeight:500}}>Clique ou arraste fotos</div>
+          <input ref={ref} type="file" accept="image/*" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
+        </div>
+        <div onClick={()=>camRef.current&&camRef.current.click()} style={{ flex:"1 1 200px", border:"2px solid "+C.accent, borderRadius:12, padding:"18px 14px", textAlign:"center", cursor:"pointer", background:C.accentLight }}>
+          <div style={{fontSize:24,marginBottom:4}}>📷</div>
+          <div style={{fontSize:12,color:C.accent,fontWeight:700}}>Usar Câmara</div>
+          <input ref={camRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
+        </div>
       </div>
-      <div onClick={()=>camRef.current&&camRef.current.click()} style={{ border:"2px solid "+C.accent, borderRadius:10, padding:"12px 10px", textAlign:"center", cursor:"pointer", background:C.accentLight, marginBottom:14 }}>
-        <div style={{fontSize:22,marginBottom:3}}>📷</div>
-        <div style={{fontSize:12,color:C.accent,fontWeight:700}}>Usar Câmara do Telemóvel</div>
-        <input ref={camRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e)=>onAdd(e.target.files)}/>
-      </div>
-      {images.length>0 && <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>{images.map((img)=>(<div key={img.id} style={{border:"1px solid "+C.border,borderRadius:8,overflow:"hidden"}}><div style={{position:"relative"}}><img src={img.url} alt="" style={{width:"100%",height:100,objectFit:"cover",display:"block"}}/><button onClick={()=>onRemove(img.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",border:"none",borderRadius:"50%",width:22,height:22,color:"#fff",cursor:"pointer",fontSize:11}}>✕</button></div><input value={img.caption} onChange={(e)=>onCaption(img.id,e.target.value)} placeholder="Legenda..." style={{width:"100%",boxSizing:"border-box",border:"none",borderTop:"1px solid "+C.border,padding:"5px 8px",fontSize:11,fontFamily:"inherit",outline:"none"}}/></div>))}</div>}
+      {images.length>0 && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
+          {images.map((img)=>(
+            <div key={img.id} style={{border:"1px solid "+C.borderLight,borderRadius:10,overflow:"hidden",background:C.surface}}>
+              <div style={{position:"relative"}}>
+                <img src={img.url} alt="" style={{width:"100%",height:90,objectFit:"cover",display:"block"}}/>
+                <button onClick={()=>onRemove(img.id)} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",border:"none",borderRadius:"50%",width:22,height:22,color:"#fff",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+              <input value={img.caption} onChange={(e)=>onCaption(img.id,e.target.value)} placeholder="Legenda..." style={{width:"100%",boxSizing:"border-box",border:"none",borderTop:"1px solid "+C.borderLight,padding:"6px 8px",fontSize:11,outline:"none",fontFamily:"Helvetica,Arial,sans-serif"}}/>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
 function SectionCard({ title, subtitle, done, children, accent=false }) {
   return (
-    <div style={{background:C.surface,border:"1.5px solid "+(done?C.done:accent?C.accent:C.border),borderRadius:14,marginBottom:20,overflow:"hidden",boxShadow:"0 2px 8px rgba(0,0,0,.05)"}}>
-      <div style={{padding:"16px 22px",background:done?C.doneBg:accent?C.accentLight:"#FAFAF8",borderBottom:"1px solid "+(done?"#C3E6D6":C.border),display:"flex",alignItems:"center",gap:10}}>
-        <div style={{fontSize:18}}>{done?"✅":accent?"🔶":"📋"}</div>
-        <div><div style={{fontWeight:700,fontSize:15,color:done?C.done:C.step}}>{title}</div>{subtitle&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>{subtitle}</div>}</div>
+    <div style={{
+      background:C.surface,
+      border:"1px solid "+(done?C.doneBorder:accent?C.accent:C.border),
+      borderRadius:14, marginBottom:20, overflow:"hidden",
+      boxShadow:"0 2px 8px rgba(0,0,0,.05)",
+    }}>
+      <div style={{
+        padding:"16px 22px",
+        background:done?C.doneBg:accent?C.accentLight:"#FAFAF8",
+        borderBottom:"1px solid "+(done?C.doneBorder:C.border),
+        display:"flex", alignItems:"center", gap:12,
+      }}>
+        <div style={{
+          width:30, height:30, borderRadius:8,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          background: done?C.done : accent?C.accent : "#E8E4DE",
+          color:"#fff", fontSize:14, fontWeight:700,
+        }}>
+          {done?"✓":accent?"●":""}
+        </div>
+        <div>
+          <div style={{fontWeight:700,fontSize:15,color:done?C.done:C.step}}>{title}</div>
+          {subtitle&&<div style={{fontSize:12,color:C.muted,marginTop:2}}>{subtitle}</div>}
+        </div>
       </div>
-      <div style={{padding:"20px 22px"}}>{children}</div>
+      <div style={{padding:"22px 22px"}}>{children}</div>
     </div>
   );
 }
-function FractionRow({ frac, onChange, onRemove }) {
+
+function FractionRow({ frac, onChange, onRemove, index }) {
   const update=(field)=>(e)=>onChange({...frac,[field]:e.target.value});
   return (
-    <div style={{border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:12,background:"#FAFAF8"}}>
-      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-        <div style={{flex:"1 1 100px"}}><Label>Entrada</Label><Input value={frac.entrada} onChange={update("entrada")} placeholder="Ex: 231"/></div>
-        <div style={{flex:"1 1 100px"}}><Label>Bloco</Label><Input value={frac.bloco} onChange={update("bloco")} placeholder="Ex: A"/></div>
-        <div style={{flex:"1 1 130px"}}><Label>Fração</Label><Input value={frac.nome} onChange={update("nome")} placeholder="Ex: 2º Esq."/></div>
-        <div style={{flex:"0 0 auto",display:"flex",alignItems:"flex-end"}}><button onClick={onRemove} style={{background:"#FEE2E2",border:"none",borderRadius:6,padding:"8px 12px",color:"#B91C1C",cursor:"pointer",fontSize:13}}>Remover</button></div>
+    <div style={{border:"1px solid "+C.border,borderRadius:12,padding:18,marginBottom:14,background:"#FAFAF8"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.accent}}>Fração #{index+1}</div>
+        <button onClick={onRemove} style={{background:C.errorBg,border:"1px solid #FECACA",borderRadius:8,padding:"6px 14px",color:C.error,cursor:"pointer",fontSize:12,fontWeight:600}}>Remover</button>
       </div>
-      <div style={{marginBottom:12}}><Label>Anomalias observadas</Label><Input value={frac.anomalias} onChange={update("anomalias")} placeholder="Infiltrações, empolamentos, fissuras..." multiline rows={3}/></div>
-      <div style={{marginBottom:12}}><Label>Humidade (higrómetro)</Label><Input value={frac.humidade} onChange={update("humidade")} placeholder="Ex: Valores superiores ao normal"/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+        <div><Label>Entrada</Label><Input value={frac.entrada} onChange={update("entrada")} placeholder="Ex: 231"/></div>
+        <div><Label>Bloco</Label><Input value={frac.bloco} onChange={update("bloco")} placeholder="Ex: A"/></div>
+        <div><Label>Fração</Label><Input value={frac.nome} onChange={update("nome")} placeholder="Ex: 2º Esq."/></div>
+      </div>
+      <div style={{marginBottom:14}}><Label>Anomalias observadas</Label><Input value={frac.anomalias} onChange={update("anomalias")} placeholder="Infiltrações, empolamentos, fissuras..." multiline rows={3}/></div>
+      <div style={{marginBottom:14}}><Label>Humidade (higrómetro)</Label><Input value={frac.humidade} onChange={update("humidade")} placeholder="Ex: Valores superiores ao normal"/></div>
       <Label>Fotos da Fração</Label>
       <PhotoZone images={frac.images||[]} onAdd={(files)=>{const n=Array.from(files).map(f=>({id:uid(),file:f,url:URL.createObjectURL(f),caption:f.name.replace(/\.[^.]+$/,"")}));onChange({...frac,images:[...(frac.images||[]),...n]});}} onRemove={(id)=>onChange({...frac,images:(frac.images||[]).filter(i=>i.id!==id)})} onCaption={(id,cap)=>onChange({...frac,images:(frac.images||[]).map(i=>i.id===id?{...i,caption:cap}:i)})} maxPhotos={6}/>
     </div>
   );
 }
+
 function ZonaSection({ zona, onChange }) {
   const update=(field)=>(e)=>onChange({...zona,[field]:e.target.value});
   return (
-    <div style={{border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:16,background:"#FAFAF8"}}>
-      <div style={{fontWeight:700,fontSize:14,color:C.accent,marginBottom:12}}>{zona.label}</div>
-      <div style={{marginBottom:12}}><Label>Descrição / Observações</Label><Input value={zona.descricao} onChange={update("descricao")} placeholder={"Estado de conservação: "+zona.label.toLowerCase()} multiline rows={4}/></div>
-      <div style={{marginBottom:12}}><Label>Anomalias Identificadas</Label><Input value={zona.anomalias} onChange={update("anomalias")} placeholder="Patologias e defeitos observados..." multiline rows={3}/></div>
+    <div style={{border:"1px solid "+C.border,borderRadius:12,padding:18,marginBottom:16,background:"#FAFAF8"}}>
+      <div style={{fontWeight:700,fontSize:14,color:C.accent,marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
+        <div style={{width:6,height:6,borderRadius:3,background:C.accent}}></div>
+        {zona.label}
+      </div>
+      <div style={{marginBottom:14}}><Label>Descrição / Observações</Label><Input value={zona.descricao} onChange={update("descricao")} placeholder={"Estado de conservação: "+zona.label.toLowerCase()} multiline rows={4}/></div>
+      <div style={{marginBottom:14}}><Label>Anomalias Identificadas</Label><Input value={zona.anomalias} onChange={update("anomalias")} placeholder="Patologias e defeitos observados..." multiline rows={3}/></div>
       <Label>Fotos</Label>
       <PhotoZone images={zona.images||[]} onAdd={(files)=>{const n=Array.from(files).map(f=>({id:uid(),file:f,url:URL.createObjectURL(f),caption:f.name.replace(/\.[^.]+$/,"")}));onChange({...zona,images:[...(zona.images||[]),...n]});}} onRemove={(id)=>onChange({...zona,images:(zona.images||[]).filter(i=>i.id!==id)})} onCaption={(id,cap)=>onChange({...zona,images:(zona.images||[]).map(i=>i.id===id?{...i,caption:cap}:i)})}/>
     </div>
   );
 }
+
+function ProgressBar({ progress, label }) {
+  return (
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:13,fontWeight:600,color:C.accent}}>{label}</span>
+        <span style={{fontSize:12,color:C.muted}}>{progress}%</span>
+      </div>
+      <div style={{height:8,background:C.borderLight,borderRadius:4,overflow:"hidden"}}>
+        <div style={{height:"100%",width:progress+"%",background:"linear-gradient(90deg,"+C.accent+","+C.accentDark+")",borderRadius:4,transition:"width .5s ease"}}></div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [step,setStep]=useState(0);
   const [generating,setGenerating]=useState(false);
   const [genProgress,setGenProgress]=useState("");
+  const [genPercent,setGenPercent]=useState(0);
+  const [genResult,setGenResult]=useState(null);
   const [nomeEdificio,setNomeEdificio]=useState("");
   const [referencia,setReferencia]=useState("");
   const [morada,setMorada]=useState("");
@@ -144,127 +250,374 @@ function App() {
   const addFracao=()=>setFracoes(p=>[...p,{id:uid(),entrada:"",bloco:"",nome:"",anomalias:"",humidade:"",images:[]}]);
   const removeFracao=(id)=>setFracoes(p=>p.filter(f=>f.id!==id));
   const updateFracao=(id,upd)=>setFracoes(p=>p.map(f=>f.id===id?upd:f));
-  const STEPS=[{label:"Edifício",icon:"🏢"},{label:"Perito",icon:"👤"},{label:"Imóvel",icon:"📐"},{label:"Zonas",icon:"🏗️"},{label:"Frações",icon:"🚪"},{label:"Recomendações",icon:"📝"},{label:"Gerar",icon:"🚀"}];
+
+  const STEPS=[
+    {label:"Edifício",icon:"🏢"},
+    {label:"Perito",icon:"👤"},
+    {label:"Imóvel",icon:"📐"},
+    {label:"Zonas",icon:"🔍"},
+    {label:"Frações",icon:"🚪"},
+    {label:"Recomendações",icon:"📝"},
+    {label:"Gerar",icon:"🚀"},
+  ];
+
+  // Verificar passos preenchidos
+  const stepCompleted = (i) => {
+    if (i === 0) return !!nomeEdificio && !!morada;
+    if (i === 1) return !!nomePerito;
+    if (i === 2) return !!tipoImovel;
+    if (i === 3) return zonas.some(z => z.descricao || z.anomalias);
+    if (i === 4) return fracoes.some(f => f.nome || f.anomalias);
+    if (i === 5) return !!recCobertura || !!recFachadas || !!recGeral;
+    return false;
+  };
+
   const getData=()=>({nomeEdificio,referencia,morada,codigoPostal,localidade,coverImages:coverImgs.images,nomePerito,bi,cedula,moradaProf,cidade,dataRelatorio,datasVisita,objetivo,gerencia,tipoImovel,numeroBlocos,numerEntradas,totalFracoesHab,totalFracoesCom,pisos,estrutura,revestimento,anoConst,aeriasImages:aeriasImgs.images,zonas,fracoes,recCobertura,recFachadas,recGeral});
-  const toBase64=(f)=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.readAsDataURL(f);});
+
+  // ============================================================
+  // GERAR RELATÓRIO — Envia dados para o n8n
+  // ============================================================
   const handleGenerate=async()=>{
-    setGenerating(true);setGenProgress("A preparar dados...");
+    if(!nomeEdificio.trim()){alert("Por favor preencha o nome do edifício.");setStep(0);return;}
+    if(!nomePerito.trim()){alert("Por favor preencha o nome do perito.");setStep(1);return;}
+
+    setGenerating(true);
+    setGenResult(null);
+    setGenProgress("A preparar dados...");
+    setGenPercent(10);
+
     const data=getData();
-    setGenProgress("A processar imagens...");
-    const coverB64=await Promise.all(data.coverImages.slice(0,2).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));
-    const zonaImgs={};
-    for(const zona of data.zonas){if(zona.images?.length){zonaImgs[zona.id]=await Promise.all(zona.images.slice(0,4).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));}}
-    const fracaoImgs={};
-    for(const frac of data.fracoes){if(frac.images?.length){fracaoImgs[frac.id]=await Promise.all(frac.images.slice(0,4).map(async img=>({base64:await toBase64(img.file),caption:img.caption,type:img.file.type||"image/jpeg"})));}}
-    setGenProgress("A gerar textos com IA...");
-    const prompt="Gera conteúdo formal para relatório de peritagem em português europeu.\nEDIFÍCIO: "+data.nomeEdificio+"\nMORADA: "+data.morada+", "+data.codigoPostal+" "+data.localidade+"\nPERITO: "+data.nomePerito+", Cédula "+data.cedula+"\nDATA: "+data.dataRelatorio+" | VISITAS: "+data.datasVisita+"\nOBJETIVO: "+data.objetivo+"\nGERÊNCIA: "+data.gerencia+"\nIMÓVEL: "+data.tipoImovel+" | "+data.numeroBlocos+" blocos | "+data.numerEntradas+" entradas\nFRAÇÕES: "+data.totalFracoesHab+" hab + "+data.totalFracoesCom+" com\nPISOS: "+data.pisos+"\nESTRUTURA: "+data.estrutura+"\nZONAS:\n"+data.zonas.map(z=>"["+z.label+"] "+z.descricao+" Anomalias: "+z.anomalias).join("\n")+"\nFRAÇÕES:\n"+data.fracoes.map(f=>"Ent."+f.entrada+" Bl."+f.bloco+" "+f.nome+": "+f.anomalias).join("\n")+"\nRECOMENDAÇÕES: "+data.recCobertura+" | "+data.recFachadas+" | "+data.recGeral+"\nResponde APENAS JSON sem backticks:\n{\"preambulo\":\"3 paragrafos\",\"descricaoImovel\":\"2 paragrafos\",\"vistoria\":\"1 paragrafo\",\"anomaliasGerais\":\"3 paragrafos\",\"zonas\":[{\"id\":\"id\",\"descricaoExpandida\":\"texto\",\"anomaliasExpandidas\":\"texto\"}],\"fracoes\":[{\"id\":\"id\",\"textoExpandido\":\"texto\"}],\"recomendacoes\":\"4 paragrafos\"}";
-    let generated={};
-    try{
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:prompt}]})});
-      const apiData=await resp.json();
-      const raw=apiData.content?.find(c=>c.type==="text")?.text||"{}";
-      generated=JSON.parse(raw.replace(/```json|```/g,"").trim());
-    }catch(e){console.error(e);}
-    setGenProgress("A exportar...");
-    const bundle={meta:{nomeEdificio:data.nomeEdificio,referencia:data.referencia,morada:data.morada,codigoPostal:data.codigoPostal,localidade:data.localidade,nomePerito:data.nomePerito,bi:data.bi,cedula:data.cedula,moradaProf:data.moradaProf,cidade:data.cidade,dataRelatorio:data.dataRelatorio,datasVisita:data.datasVisita,objetivo:data.objetivo,gerencia:data.gerencia,tipoImovel:data.tipoImovel,numeroBlocos:data.numeroBlocos,numerEntradas:data.numerEntradas,totalFracoesHab:data.totalFracoesHab,totalFracoesCom:data.totalFracoesCom,pisos:data.pisos,estrutura:data.estrutura,revestimento:data.revestimento,anoConst:data.anoConst,recCobertura:data.recCobertura,recFachadas:data.recFachadas,recGeral:data.recGeral},generated,coverImagens:coverB64,zonas:data.zonas.map(z=>({id:z.id,label:z.label,imagens:zonaImgs[z.id]||[]})),fracoes:data.fracoes.map(f=>({id:f.id,entrada:f.entrada,bloco:f.bloco,nome:f.nome,humidade:f.humidade,imagens:fracaoImgs[f.id]||[]}))};
-    const blob=new Blob([JSON.stringify(bundle,null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");a.href=url;a.download="relatorio_"+(data.nomeEdificio||"edificio").replace(/\s+/g,"_")+".json";a.click();URL.revokeObjectURL(url);
-    setGenProgress("✅ Concluído! Ficheiro exportado.");
+
+    setGenProgress("A organizar informação...");
+    setGenPercent(25);
+
+    const payload = {
+      edificio: {
+        nome: data.nomeEdificio,
+        morada: data.morada,
+        codigo_postal: data.codigoPostal,
+        localidade: data.localidade,
+        referencia: data.referencia,
+        tipo: data.tipoImovel,
+        num_blocos: data.numeroBlocos,
+        num_entradas: data.numerEntradas,
+        num_fracoes_hab: data.totalFracoesHab,
+        num_fracoes_com: data.totalFracoesCom,
+        pisos: data.pisos,
+        estrutura: data.estrutura,
+        revestimento: data.revestimento,
+        ano_construcao: data.anoConst,
+        data_vistoria: data.datasVisita,
+      },
+      perito: {
+        nome: data.nomePerito,
+        bi: data.bi,
+        cedula: data.cedula,
+        morada: data.moradaProf,
+        cidade: data.cidade,
+      },
+      imovel: {
+        tipo: data.tipoImovel,
+        pisos: data.pisos,
+        tipo_estrutura: data.estrutura,
+        revestimento: data.revestimento,
+        ano_construcao: data.anoConst,
+      },
+      zonas: data.zonas.filter(z=>z.descricao||z.anomalias).map(z=>({
+        nome: z.label,
+        descricao: z.descricao,
+        anomalias: z.anomalias,
+        fotografias: (z.images||[]).map(i=>i.caption),
+      })),
+      fracoes: data.fracoes.filter(f=>f.nome||f.anomalias).map(f=>({
+        designacao: [f.entrada&&("Ent. "+f.entrada), f.bloco&&("Bloco "+f.bloco), f.nome].filter(Boolean).join(" — "),
+        entrada: f.entrada,
+        bloco: f.bloco,
+        nome: f.nome,
+        observacoes: f.anomalias,
+        humidade: f.humidade,
+      })),
+      recomendacoes: [
+        data.recCobertura && {texto:data.recCobertura, prioridade:"URGENTE"},
+        data.recFachadas && {texto:data.recFachadas, prioridade:"IMPORTANTE"},
+        data.recGeral && {texto:data.recGeral, prioridade:"NORMAL"},
+      ].filter(Boolean),
+      referencia: data.referencia || ("HSE-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*9999)).padStart(4,"0")),
+      dataRelatorio: data.dataRelatorio,
+      datasVisita: data.datasVisita,
+      objetivo: data.objetivo,
+      gerencia: data.gerencia,
+    };
+
+    setGenProgress("A enviar para processamento...");
+    setGenPercent(40);
+
+    try {
+      const resp = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      setGenProgress("A gerar textos com IA e criar PDF...");
+      setGenPercent(70);
+
+      if (!resp.ok) {
+        throw new Error("Erro do servidor: " + resp.status);
+      }
+
+      const result = await resp.json();
+      setGenPercent(100);
+
+      if (result.sucesso) {
+        setGenResult({
+          success: true,
+          message: "Relatório gerado e enviado para relatorios@hsengenharias.pt",
+          referencia: result.referencia,
+          edificio: result.edificio,
+        });
+        setGenProgress("");
+      } else {
+        throw new Error(result.mensagem || "Erro ao gerar relatório");
+      }
+    } catch (e) {
+      console.error("Erro:", e);
+      setGenResult({
+        success: false,
+        message: "Ocorreu um erro: " + e.message + ". Verifique a ligação e tente novamente.",
+      });
+      setGenProgress("");
+    }
+
     setGenerating(false);
   };
+
   const data=getData();
   const totalPhotos=[...(data.coverImages||[]),...(data.aeriasImages||[]),...data.zonas.flatMap(z=>z.images||[]),...data.fracoes.flatMap(f=>f.images||[])].length;
+
   return (
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"Georgia,serif"}}>
+    <div style={{minHeight:"100vh",background:C.bg}}>
+      {/* HEADER */}
       <div style={{background:C.step}}>
-        <div style={{maxWidth:900,margin:"0 auto",padding:"18px 20px",display:"flex",alignItems:"center",gap:14}}>
-          <div style={{background:C.accent,borderRadius:8,padding:"7px 13px",fontWeight:900,fontSize:17,color:"#fff",letterSpacing:1}}>HS</div>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"18px 20px 14px",display:"flex",alignItems:"center",gap:14}}>
+          <div style={{background:C.accent,borderRadius:8,padding:"8px 14px",fontWeight:900,fontSize:17,color:"#fff",letterSpacing:1.5}}>HS</div>
           <div>
-            <div style={{color:"#fff",fontWeight:700,fontSize:15}}>Gerador de Relatórios de Peritagem</div>
-            <div style={{color:"rgba(255,255,255,.5)",fontSize:11}}>HS Engenharias · {totalPhotos} fotos · {data.fracoes.length} frações</div>
+            <div style={{color:"#fff",fontWeight:700,fontSize:15,letterSpacing:0.3}}>Gerador de Relatórios de Peritagem</div>
+            <div style={{color:"rgba(255,255,255,.55)",fontSize:11,marginTop:2}}>HS Engenharias · {totalPhotos} fotos · {data.fracoes.length} frações</div>
           </div>
         </div>
-        <div style={{borderTop:"1px solid rgba(255,255,255,.08)",overflowX:"auto"}}>
+
+        {/* STEP NAV com indicação visual de passos preenchidos */}
+        <div style={{borderTop:"1px solid rgba(255,255,255,.08)",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
           <div style={{maxWidth:900,margin:"0 auto",display:"flex"}}>
-            {STEPS.map((s,i)=>(<button key={i} onClick={()=>setStep(i)} style={{background:"none",border:"none",cursor:"pointer",padding:"11px 14px",whiteSpace:"nowrap",color:i===step?C.accent:"rgba(255,255,255,.45)",fontWeight:i===step?700:400,fontSize:12,borderBottom:i===step?"3px solid "+C.accent:"3px solid transparent",fontFamily:"inherit"}}>{s.icon} {s.label}</button>))}
+            {STEPS.map((s,i)=>{
+              const isActive = i === step;
+              const isDone = stepCompleted(i);
+              return (
+                <button key={i} onClick={()=>setStep(i)} style={{
+                  background:"none", border:"none", cursor:"pointer",
+                  padding:"11px 14px", whiteSpace:"nowrap",
+                  color: isActive ? C.accent : isDone ? "#fff" : "rgba(255,255,255,.45)",
+                  fontWeight: isActive ? 700 : isDone ? 600 : 400,
+                  fontSize:12,
+                  borderBottom: isActive ? "3px solid "+C.accent : "3px solid transparent",
+                  fontFamily:"Helvetica,Arial,sans-serif",
+                  display:"flex", alignItems:"center", gap:6,
+                }}>
+                  <span>{isDone && !isActive ? "✓" : s.icon}</span>
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* CONTENT */}
       <div style={{maxWidth:900,margin:"0 auto",padding:"28px 20px"}}>
-        {step===0&&(<><SectionCard title="Identificação do Edifício" accent done={!!nomeEdificio&&!!morada}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{gridColumn:"1/-1"}}><Label>Nome do Edifício *</Label><Input value={nomeEdificio} onChange={e=>setNomeEdificio(e.target.value)} placeholder="Ex: Edifício Prestígio"/></div>
-            <div><Label>Referência</Label><Input value={referencia} onChange={e=>setReferencia(e.target.value)} placeholder="Ex: PR1_475"/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Morada *</Label><Input value={morada} onChange={e=>setMorada(e.target.value)} placeholder="Ex: Rua do Pinhal N.º 175 a 231"/></div>
-            <div><Label>Código Postal</Label><Input value={codigoPostal} onChange={e=>setCodigoPostal(e.target.value)} placeholder="4410-269"/></div>
-            <div><Label>Localidade</Label><Input value={localidade} onChange={e=>setLocalidade(e.target.value)} placeholder="Canelas"/></div>
-          </div>
-        </SectionCard>
-        <SectionCard title="Fotografia de Capa" done={coverImgs.images.length>0}>
-          <PhotoZone images={coverImgs.images} onAdd={coverImgs.add} onRemove={coverImgs.remove} onCaption={coverImgs.setCaption} maxPhotos={1}/>
-        </SectionCard></>)}
-        {step===1&&(<><SectionCard title="Dados do Perito" accent done={!!nomePerito}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{gridColumn:"1/-1"}}><Label>Nome Completo *</Label><Input value={nomePerito} onChange={e=>setNomePerito(e.target.value)} placeholder="Ex: Rita Isabel dos Reis Marques"/></div>
-            <div><Label>Nº Cartão Cidadão</Label><Input value={bi} onChange={e=>setBi(e.target.value)} placeholder="11974057"/></div>
-            <div><Label>Cédula Profissional</Label><Input value={cedula} onChange={e=>setCedula(e.target.value)} placeholder="18718"/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Morada Profissional</Label><Input value={moradaProf} onChange={e=>setMoradaProf(e.target.value)} placeholder="Rua de Monsanto, 512B, Porto"/></div>
-          </div>
-        </SectionCard>
-        <SectionCard title="Dados do Relatório" done={!!dataRelatorio}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div><Label>Data do Relatório</Label><Input value={dataRelatorio} onChange={e=>setDataRelatorio(e.target.value)} placeholder="Porto, 7 de Abril de 2026"/></div>
-            <div><Label>Datas das Visitas</Label><Input value={datasVisita} onChange={e=>setDatasVisita(e.target.value)} placeholder="2, 3, 4, 9 e 10 de dezembro 2025"/></div>
-            <div><Label>Cidade</Label><Input value={cidade} onChange={e=>setCidade(e.target.value)} placeholder="Porto"/></div>
-            <div><Label>Gerência</Label><Input value={gerencia} onChange={e=>setGerencia(e.target.value)} placeholder="Cálculo Expedito, Consultoria em Engenharia, Lda."/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Objetivo</Label><Input value={objetivo} onChange={e=>setObjetivo(e.target.value)} multiline rows={3} placeholder="Objetivo do relatório..."/></div>
-          </div>
-        </SectionCard></>)}
-        {step===2&&(<><SectionCard title="Caracterização do Imóvel" accent done={!!tipoImovel}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{gridColumn:"1/-1"}}><Label>Tipologia</Label><Input value={tipoImovel} onChange={e=>setTipoImovel(e.target.value)} placeholder="habitacional e comercial"/></div>
-            <div><Label>Nº de Blocos</Label><Input value={numeroBlocos} onChange={e=>setNumeroBlocos(e.target.value)} placeholder="quatro (4)"/></div>
-            <div><Label>Nº de Entradas</Label><Input value={numerEntradas} onChange={e=>setNumeroEntradas(e.target.value)} placeholder="onze (11)"/></div>
-            <div><Label>Frações Habitacionais</Label><Input value={totalFracoesHab} onChange={e=>setTotalFracoesHab(e.target.value)} placeholder="150"/></div>
-            <div><Label>Frações Comerciais</Label><Input value={totalFracoesCom} onChange={e=>setTotalFracoesCom(e.target.value)} placeholder="3"/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Pisos</Label><Input value={pisos} onChange={e=>setPisos(e.target.value)} placeholder="cave, rés-do-chão e três pisos elevados"/></div>
-            <div><Label>Ano / Época</Label><Input value={anoConst} onChange={e=>setAnoConst(e.target.value)} placeholder="século XX"/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Sistema Estrutural</Label><Input value={estrutura} onChange={e=>setEstrutura(e.target.value)} multiline rows={2} placeholder="estrutura porticada de betão armado..."/></div>
-            <div style={{gridColumn:"1/-1"}}><Label>Revestimentos</Label><Input value={revestimento} onChange={e=>setRevestimento(e.target.value)} multiline rows={2} placeholder="reboco armado nas fachadas..."/></div>
-          </div>
-        </SectionCard>
-        <SectionCard title="Fotos Aéreas / Vista Geral" done={aeriasImgs.images.length>0}>
-          <PhotoZone images={aeriasImgs.images} onAdd={aeriasImgs.add} onRemove={aeriasImgs.remove} onCaption={aeriasImgs.setCaption} maxPhotos={4}/>
-        </SectionCard></>)}
-        {step===3&&(<SectionCard title="Zonas Comuns" subtitle="Preencha cada zona inspecionada" accent>
-          {zonas.map(zona=>(<ZonaSection key={zona.id} zona={zona} onChange={upd=>updateZona(zona.id,upd)}/>))}
-        </SectionCard>)}
-        {step===4&&(<SectionCard title="Frações Autónomas" subtitle="Adicione uma linha por fração" accent>
-          {fracoes.map(f=>(<FractionRow key={f.id} frac={f} onChange={upd=>updateFracao(f.id,upd)} onRemove={()=>removeFracao(f.id)}/>))}
-          <button onClick={addFracao} style={{width:"100%",padding:"12px 0",background:C.accentLight,border:"2px dashed "+C.accent,borderRadius:8,color:C.accent,fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>+ Adicionar Fração</button>
-        </SectionCard>)}
-        {step===5&&(<SectionCard title="Recomendações / Proposta de Execução" accent done={!!recCobertura||!!recFachadas}>
-          <div style={{marginBottom:18}}><Label>Cobertura</Label><Input value={recCobertura} onChange={e=>setRecCobertura(e.target.value)} multiline rows={4} placeholder="Propõe-se a reabilitação da cobertura..."/></div>
-          <div style={{marginBottom:18}}><Label>Fachadas</Label><Input value={recFachadas} onChange={e=>setRecFachadas(e.target.value)} multiline rows={4} placeholder="Propõe-se a lavagem integral do revestimento..."/></div>
-          <div><Label>Geral / Outros</Label><Input value={recGeral} onChange={e=>setRecGeral(e.target.value)} multiline rows={3} placeholder="Retificação de caleiras..."/></div>
-        </SectionCard>)}
-        {step===6&&(<SectionCard title="Gerar Relatório" done={!generating}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
-            {[{label:"Edifício",value:nomeEdificio||"—"},{label:"Perito",value:nomePerito?nomePerito.split(" ")[0]:"—"},{label:"Frações",value:fracoes.length},{label:"Fotos",value:totalPhotos},{label:"Zonas",value:zonas.filter(z=>z.descricao||z.images?.length>0).length},{label:"Recomendações",value:recCobertura||recFachadas?"✓":"—"}].map(({label,value})=>(<div key={label} style={{background:C.accentLight,borderRadius:8,padding:"12px 14px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:C.accent}}>{value}</div><div style={{fontSize:11,color:C.muted,marginTop:2}}>{label}</div></div>))}
-          </div>
-          {generating?(<div style={{textAlign:"center",padding:24}}><div style={{fontSize:32,marginBottom:10}}>⚙️</div><div style={{fontWeight:700,color:C.step,marginBottom:6}}>A gerar...</div><div style={{fontSize:13,color:C.muted}}>{genProgress}</div></div>):genProgress?(<div><div style={{marginBottom:14,padding:14,background:C.doneBg,borderRadius:8,fontSize:13,color:C.done}}>{genProgress}</div><button onClick={handleGenerate} style={{width:"100%",padding:"13px 0",background:C.step,color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>🔄 Gerar novamente</button></div>):(<button onClick={handleGenerate} style={{width:"100%",padding:"16px 0",background:C.accent,color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:16,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(199,91,26,.35)"}}>🚀 Gerar Relatório com IA</button>)}
-        </SectionCard>)}
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
-          {step>0&&(<button onClick={()=>setStep(s=>s-1)} style={{background:C.surface,border:"1.5px solid "+C.border,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"inherit",fontSize:14,color:C.text}}>← Anterior</button>)}
-          {step<STEPS.length-1&&(<button onClick={()=>setStep(s=>s+1)} style={{marginLeft:"auto",background:C.step,color:"#fff",border:"none",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:700}}>Próximo →</button>)}
+
+        {step===0&&(<>
+          <SectionCard title="Identificação do Edifício" accent done={!!nomeEdificio&&!!morada}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div style={{gridColumn:"1/-1"}}><Label required>Nome do Edifício</Label><Input value={nomeEdificio} onChange={e=>setNomeEdificio(e.target.value)} placeholder="Ex: Edifício Prestígio"/></div>
+              <div><Label>Referência</Label><Input value={referencia} onChange={e=>setReferencia(e.target.value)} placeholder="Ex: PR1_475"/></div>
+              <div style={{gridColumn:"1/-1"}}><Label required>Morada</Label><Input value={morada} onChange={e=>setMorada(e.target.value)} placeholder="Ex: Rua do Pinhal N.º 175 a 231"/></div>
+              <div><Label>Código Postal</Label><Input value={codigoPostal} onChange={e=>setCodigoPostal(e.target.value)} placeholder="4410-269"/></div>
+              <div><Label>Localidade</Label><Input value={localidade} onChange={e=>setLocalidade(e.target.value)} placeholder="Canelas"/></div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Fotografia de Capa" done={coverImgs.images.length>0}>
+            <PhotoZone images={coverImgs.images} onAdd={coverImgs.add} onRemove={coverImgs.remove} onCaption={coverImgs.setCaption} maxPhotos={1}/>
+          </SectionCard>
+        </>)}
+
+        {step===1&&(<>
+          <SectionCard title="Dados do Perito" accent done={!!nomePerito}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div style={{gridColumn:"1/-1"}}><Label required>Nome Completo</Label><Input value={nomePerito} onChange={e=>setNomePerito(e.target.value)} placeholder="Ex: Rita Isabel dos Reis Marques"/></div>
+              <div><Label>Nº Cartão Cidadão</Label><Input value={bi} onChange={e=>setBi(e.target.value)} placeholder="11974057"/></div>
+              <div><Label>Cédula Profissional</Label><Input value={cedula} onChange={e=>setCedula(e.target.value)} placeholder="18718"/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>Morada Profissional</Label><Input value={moradaProf} onChange={e=>setMoradaProf(e.target.value)} placeholder="Rua de Monsanto, 512B, Porto"/></div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Dados do Relatório" done={!!dataRelatorio}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div><Label>Data do Relatório</Label><Input value={dataRelatorio} onChange={e=>setDataRelatorio(e.target.value)} placeholder="Porto, 7 de Abril de 2026"/></div>
+              <div><Label>Datas das Visitas</Label><Input value={datasVisita} onChange={e=>setDatasVisita(e.target.value)} placeholder="2, 3, 4, 9 e 10 de dezembro 2025"/></div>
+              <div><Label>Cidade</Label><Input value={cidade} onChange={e=>setCidade(e.target.value)} placeholder="Porto"/></div>
+              <div><Label>Gerência</Label><Input value={gerencia} onChange={e=>setGerencia(e.target.value)} placeholder="Cálculo Expedito, Consultoria em Engenharia, Lda."/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>Objetivo</Label><Input value={objetivo} onChange={e=>setObjetivo(e.target.value)} multiline rows={3} placeholder="Objetivo do relatório..."/></div>
+            </div>
+          </SectionCard>
+        </>)}
+
+        {step===2&&(<>
+          <SectionCard title="Caracterização do Imóvel" accent done={!!tipoImovel}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div style={{gridColumn:"1/-1"}}><Label>Tipologia</Label><Input value={tipoImovel} onChange={e=>setTipoImovel(e.target.value)} placeholder="habitacional e comercial"/></div>
+              <div><Label>Nº de Blocos</Label><Input value={numeroBlocos} onChange={e=>setNumeroBlocos(e.target.value)} placeholder="quatro (4)"/></div>
+              <div><Label>Nº de Entradas</Label><Input value={numerEntradas} onChange={e=>setNumeroEntradas(e.target.value)} placeholder="onze (11)"/></div>
+              <div><Label>Frações Habitacionais</Label><Input value={totalFracoesHab} onChange={e=>setTotalFracoesHab(e.target.value)} placeholder="150"/></div>
+              <div><Label>Frações Comerciais</Label><Input value={totalFracoesCom} onChange={e=>setTotalFracoesCom(e.target.value)} placeholder="3"/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>Pisos</Label><Input value={pisos} onChange={e=>setPisos(e.target.value)} placeholder="cave, rés-do-chão e três pisos elevados"/></div>
+              <div><Label>Ano / Época</Label><Input value={anoConst} onChange={e=>setAnoConst(e.target.value)} placeholder="século XX"/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>Sistema Estrutural</Label><Input value={estrutura} onChange={e=>setEstrutura(e.target.value)} multiline rows={2} placeholder="estrutura porticada de betão armado..."/></div>
+              <div style={{gridColumn:"1/-1"}}><Label>Revestimentos</Label><Input value={revestimento} onChange={e=>setRevestimento(e.target.value)} multiline rows={2} placeholder="reboco armado nas fachadas..."/></div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Fotos Aéreas / Vista Geral" done={aeriasImgs.images.length>0}>
+            <PhotoZone images={aeriasImgs.images} onAdd={aeriasImgs.add} onRemove={aeriasImgs.remove} onCaption={aeriasImgs.setCaption} maxPhotos={4}/>
+          </SectionCard>
+        </>)}
+
+        {step===3&&(
+          <SectionCard title="Zonas Comuns" subtitle="Preencha cada zona inspecionada" accent>
+            {zonas.map(zona=>(<ZonaSection key={zona.id} zona={zona} onChange={upd=>updateZona(zona.id,upd)}/>))}
+          </SectionCard>
+        )}
+
+        {step===4&&(
+          <SectionCard title="Frações Autónomas" subtitle="Adicione uma linha por fração" accent>
+            {fracoes.map((f,i)=>(<FractionRow key={f.id} frac={f} index={i} onChange={upd=>updateFracao(f.id,upd)} onRemove={()=>removeFracao(f.id)}/>))}
+            <button onClick={addFracao} style={{
+              width:"100%", padding:"14px 0",
+              background:C.accentLight, border:"2px dashed "+C.accent,
+              borderRadius:10, color:C.accent, fontWeight:700,
+              cursor:"pointer", fontSize:14,
+              fontFamily:"Helvetica,Arial,sans-serif",
+            }}>+ Adicionar Fração</button>
+          </SectionCard>
+        )}
+
+        {step===5&&(
+          <SectionCard title="Recomendações / Proposta de Execução" accent done={!!recCobertura||!!recFachadas}>
+            <div style={{marginBottom:18}}><Label>Cobertura</Label><Input value={recCobertura} onChange={e=>setRecCobertura(e.target.value)} multiline rows={4} placeholder="Propõe-se a reabilitação da cobertura..."/></div>
+            <div style={{marginBottom:18}}><Label>Fachadas</Label><Input value={recFachadas} onChange={e=>setRecFachadas(e.target.value)} multiline rows={4} placeholder="Propõe-se a lavagem integral do revestimento..."/></div>
+            <div><Label>Geral / Outros</Label><Input value={recGeral} onChange={e=>setRecGeral(e.target.value)} multiline rows={3} placeholder="Retificação de caleiras..."/></div>
+          </SectionCard>
+        )}
+
+        {step===6&&(
+          <SectionCard title="Gerar Relatório">
+            {/* RESUMO */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:24}}>
+              {[
+                {label:"Edifício",value:nomeEdificio||"—"},
+                {label:"Perito",value:nomePerito?nomePerito.split(" ").slice(0,2).join(" "):"—"},
+                {label:"Frações",value:fracoes.length},
+                {label:"Fotos",value:totalPhotos},
+                {label:"Zonas",value:zonas.filter(z=>z.descricao||z.images?.length>0).length},
+                {label:"Recomendações",value:recCobertura||recFachadas?"✓":"—"},
+              ].map(({label,value})=>(
+                <div key={label} style={{background:C.accentLight,borderRadius:10,padding:"14px",textAlign:"center"}}>
+                  <div style={{fontSize:20,fontWeight:800,color:C.accent}}>{value}</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:3}}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* DESTINO */}
+            <div style={{background:C.warnBg,border:"1px solid "+C.accentSoft,borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:C.warn}}>
+              <strong>📧 Destino:</strong> O relatório será enviado para <strong>relatorios@hsengenharias.pt</strong>
+            </div>
+
+            {/* ESTADO */}
+            {generating ? (
+              <div style={{textAlign:"center",padding:"30px 20px"}}>
+                <div style={{width:48,height:48,border:"4px solid "+C.borderLight,borderTopColor:C.accent,borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}></div>
+                <div style={{fontWeight:700,color:C.accent,marginBottom:8,fontSize:15}}>A gerar relatório...</div>
+                <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{genProgress}</div>
+                <ProgressBar progress={genPercent} label="Progresso"/>
+              </div>
+            ) : genResult ? (
+              <div>
+                <div style={{
+                  padding:"20px",borderRadius:12,marginBottom:16,textAlign:"center",
+                  background: genResult.success ? C.doneBg : C.errorBg,
+                  border: "1px solid " + (genResult.success ? C.doneBorder : "#FECACA"),
+                }}>
+                  <div style={{fontSize:40,marginBottom:8}}>{genResult.success ? "✅" : "❌"}</div>
+                  <div style={{fontWeight:700,fontSize:16,color:genResult.success?C.done:C.error,marginBottom:6}}>
+                    {genResult.success ? "Relatório Enviado!" : "Erro"}
+                  </div>
+                  <div style={{fontSize:13,color:C.textSecondary}}>{genResult.message}</div>
+                  {genResult.referencia && (
+                    <div style={{marginTop:10,fontSize:12,color:C.muted}}>
+                      Referência: <strong>{genResult.referencia}</strong>
+                    </div>
+                  )}
+                </div>
+                <button onClick={()=>{setGenResult(null);}} style={{
+                  width:"100%", padding:"14px 0",
+                  background:C.accent, color:"#fff", border:"none",
+                  borderRadius:10, fontWeight:700, fontSize:15,
+                  cursor:"pointer",
+                  fontFamily:"Helvetica,Arial,sans-serif",
+                }}>
+                  {genResult.success ? "📋 Novo Relatório" : "🔄 Tentar Novamente"}
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleGenerate} style={{
+                width:"100%", padding:"18px 0",
+                background:C.accent, color:"#fff", border:"none",
+                borderRadius:12, fontWeight:800, fontSize:16,
+                cursor:"pointer",
+                boxShadow:"0 4px 16px rgba(199,91,26,.35)",
+                fontFamily:"Helvetica,Arial,sans-serif",
+              }}>
+                🚀 Gerar Relatório e Enviar por Email
+              </button>
+            )}
+          </SectionCard>
+        )}
+
+        {/* NAVIGATION */}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingBottom:40}}>
+          {step>0 ? (
+            <button onClick={()=>setStep(s=>s-1)} style={{
+              background:C.surface, border:"1.5px solid "+C.border,
+              borderRadius:10, padding:"12px 24px", cursor:"pointer",
+              fontSize:14, color:C.text, fontWeight:600,
+              fontFamily:"Helvetica,Arial,sans-serif",
+            }}>← Anterior</button>
+          ) : <div/>}
+          {step<STEPS.length-1 && (
+            <button onClick={()=>setStep(s=>s+1)} style={{
+              background:C.step, color:"#fff", border:"none",
+              borderRadius:10, padding:"12px 28px", cursor:"pointer",
+              fontSize:14, fontWeight:700,
+              fontFamily:"Helvetica,Arial,sans-serif",
+            }}>Próximo →</button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
 const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(App));
 </script>
 </body>
-</html>  
+</html>
